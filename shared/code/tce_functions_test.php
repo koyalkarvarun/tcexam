@@ -212,58 +212,52 @@ function F_repeatTest($test_id)
  * @param $test_ips (int) comma separated list of valid test IP addresses. The '*' character may be used to indicate any number in IPv4 addresses. Intervals must be specified using the '-' character.
  * @return true if IP is valid, false otherwise
  */
-function F_isValidIP($user_ip, $test_ips)
-{
+function F_isValidIP($user_ip, $test_ips) {
     if (empty($user_ip) || empty($test_ips)) {
         return false;
     }
 
-    // convert user IP to number
-    $usrip = getIpAsInt($user_ip);
-    // build array of valid IP masks
-    $test_ip = explode(',', $test_ips);
-    // check user IP against test IP masks
-    foreach ($test_ip as $key => $ipmask) {
-        if (strrpos($ipmask, '*') !== false) {
-            // old range notation using IPv4 addresses and '*' character.
-            $ipv4 = explode('.', $ipmask);
-            $ipv4_start = [];
-            $ipv4_end = [];
-            foreach ($ipv4 as $num) {
-                if ($num == '*') {
-                    $ipv4_start[] = 0;
-                    $ipv4_end[] = 255;
-                } else {
-                    $num = (int) $num;
-                    if ($num >= 0 && $num <= 255) {
-                        $ipv4_start[] = $num;
-                        $ipv4_end[] = $num;
-                    } else {
-                        $ipv4_start[] = 0;
-                        $ipv4_end[] = 255;
-                    }
-                }
-            }
+    // Normalize IPs
+    $usrip = inet_pton($user_ip);
+    if ($usrip === false) {
+        return false;
+    }
 
-            // convert to IPv6 address range
-            $ipmask = getNormalizedIP(implode('.', $ipv4_start)) . '-' . getNormalizedIP(implode('.', $ipv4_end));
+    $test_ip_ranges = explode(',', $test_ips);
+    foreach ($test_ip_ranges as $ip_range) {
+        // Handle wildcard *.*.*.*
+        if ($ip_range === '*.*.*.*' || $ip_range === '::/0') {
+            return true;
         }
 
-        if (strrpos($ipmask, '-') !== false) {
-            // address range
-            $ip_range = explode('-', $ipmask);
-            if (count($ip_range) !== 2) {
-                return false;
+        // Handle IP range with '-'
+        if (strpos($ip_range, '-') !== false) {
+            list($start_ip, $end_ip) = explode('-', $ip_range, 2);
+            $start_ip = inet_pton(trim($start_ip));
+            $end_ip = inet_pton(trim($end_ip));
+
+            if ($start_ip === false || $end_ip === false) {
+                continue;
             }
 
-            $ip_start = getIpAsInt($ip_range[0]);
-            $ip_end = getIpAsInt($ip_range[1]);
-            if ($usrip >= $ip_start && $usrip <= $ip_end) {
+            if ($usrip >= $start_ip && $usrip <= $end_ip) {
                 return true;
             }
-        } elseif ($usrip == getIpAsInt($ipmask)) {
-            // exact address comparison
-            return true;
+        } else {
+            // Handle single IP or wildcard within an IP
+            $wildcard_ip = str_replace('*', '0', $ip_range);
+            $wildcard_mask = str_replace('*', '255', $ip_range);
+
+            $start_ip = inet_pton(trim($wildcard_ip));
+            $end_ip = inet_pton(trim($wildcard_mask));
+
+            if ($start_ip === false || $end_ip === false) {
+                continue;
+            }
+
+            if ($usrip >= $start_ip && $usrip <= $end_ip) {
+                return true;
+            }
         }
     }
 
@@ -1767,9 +1761,9 @@ function F_questionForm($test_id, $testlog_id, $formname)
             if (F_getBoolean($m['question_fullscreen'])) {
                 // hide some section for fullscreen mode
                 $str .= '<style>' . K_NEWLINE;
-                $str .= '.header{visibility:hidden;display:none;}' . K_NEWLINE;
+                //$str .= '.header{visibility:hidden;display:none;}' . K_NEWLINE;
                 $str .= '.infolink{visibility:hidden;display:none;}' . K_NEWLINE;
-                $str .= 'h1{visibility:hidden;display:none;}' . K_NEWLINE;
+                //$str .= 'h1{visibility:hidden;display:none;}' . K_NEWLINE;
                 $str .= '.pagehelp{visibility:hidden;display:none;}' . K_NEWLINE;
                 $str .= '.userbar{visibility:hidden;display:none;}' . K_NEWLINE;
                 $str .= '.minibutton{visibility:hidden;display:none;}' . K_NEWLINE;

@@ -496,8 +496,10 @@ ol.answer {
 
 ol.answer li {
 	margin: 0px 0px 0px 0px;
-	padding: 0px 0px 0px 0px;
+	padding: 10px 10px 10px 10px;
 }
+
+
 
 ol.answer_inline {
 	list-style-type: none;
